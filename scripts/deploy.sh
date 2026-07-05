@@ -85,7 +85,13 @@ stringData:
 EOF
 
 echo "Syncing project to thunderball..."
-rsync -av --delete "${ROOT_DIR}/" "${THUNDERBALL_SSH}:${THUNDERBALL_PROJECT_DIR}/"
+rsync -av --delete \
+  --exclude='.git/' \
+  --exclude='.env' \
+  --exclude='.env.*' \
+  --exclude='k8s/secrets.yaml' \
+  --exclude='*firebase-adminsdk*.json' \
+  "${ROOT_DIR}/" "${THUNDERBALL_SSH}:${THUNDERBALL_PROJECT_DIR}/"
 
 echo "Building image on thunderball into k3s containerd cache..."
 if ssh "${THUNDERBALL_SSH}" "command -v nerdctl >/dev/null 2>&1"; then
