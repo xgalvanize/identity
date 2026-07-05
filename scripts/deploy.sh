@@ -4,8 +4,12 @@ set -euo pipefail
 KUBECONFIG_PATH="${KUBECONFIG_PATH:-/home/borg/.kube/k3s-remote}"
 THUNDERBALL_SSH="${THUNDERBALL_SSH:-borg@thunderball}"
 THUNDERBALL_PROJECT_DIR="${THUNDERBALL_PROJECT_DIR:-/home/borg/identity}"
-IMAGE="${IMAGE:-ghcr.io/xgalvanize/global-identity:latest}"
+IMAGE="${IMAGE:-identity-api:latest}"
 NAMESPACE="global-identity"
+ENABLE_FIREBASE_AUTH="${ENABLE_FIREBASE_AUTH:-true}"
+ALLOW_LOCAL_PASSWORD_AUTH="${ALLOW_LOCAL_PASSWORD_AUTH:-false}"
+FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-}"
+FIREBASE_SERVICE_ACCOUNT_JSON_PATH="${FIREBASE_SERVICE_ACCOUNT_JSON_PATH:-}"
 
 if ! command -v kubectl >/dev/null 2>&1; then
   echo "kubectl is required" >&2
@@ -33,6 +37,26 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 MONGO_PASSWORD="$(openssl rand -base64 24 | tr -d '\n')"
 JWT_SECRET="$(openssl rand -base64 48 | tr -d '\n')"
 
+if [[ "${ENABLE_FIREBASE_AUTH}" != "true" && "${ALLOW_LOCAL_PASSWORD_AUTH}" != "true" ]]; then
+  echo "Invalid auth config: either ENABLE_FIREBASE_AUTH=true or ALLOW_LOCAL_PASSWORD_AUTH=true is required." >&2
+  exit 1
+fi
+
+FIREBASE_SERVICE_ACCOUNT_JSON="{}"
+if [[ "${ENABLE_FIREBASE_AUTH}" == "true" ]]; then
+  if [[ -z "${FIREBASE_PROJECT_ID}" ]]; then
+    echo "FIREBASE_PROJECT_ID is required when ENABLE_FIREBASE_AUTH=true" >&2
+    exit 1
+  fi
+
+  if [[ -z "${FIREBASE_SERVICE_ACCOUNT_JSON_PATH}" || ! -f "${FIREBASE_SERVICE_ACCOUNT_JSON_PATH}" ]]; then
+    echo "FIREBASE_SERVICE_ACCOUNT_JSON_PATH must point to a valid service-account JSON file when ENABLE_FIREBASE_AUTH=true" >&2
+    exit 1
+  fi
+
+  FIREBASE_SERVICE_ACCOUNT_JSON="$(tr -d '\n' < "${FIREBASE_SERVICE_ACCOUNT_JSON_PATH}")"
+fi
+
 cat >"${ROOT_DIR}/k8s/secrets.yaml" <<EOF
 apiVersion: v1
 kind: Secret
@@ -53,6 +77,11 @@ type: Opaque
 stringData:
   jwt-secret: ${JWT_SECRET}
   mongo-uri: mongodb://root:${MONGO_PASSWORD}@mongodb.${NAMESPACE}.svc.cluster.local:27017
+  enable-firebase-auth: "${ENABLE_FIREBASE_AUTH}"
+  allow-local-password-auth: "${ALLOW_LOCAL_PASSWORD_AUTH}"
+  firebase-project-id: "${FIREBASE_PROJECT_ID}"
+  firebase-service-account-json: |
+    ${FIREBASE_SERVICE_ACCOUNT_JSON}
 EOF
 
 echo "Syncing project to thunderball..."

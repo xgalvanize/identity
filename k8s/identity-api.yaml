@@ -30,7 +30,7 @@ spec:
     spec:
       containers:
         - name: identity-api
-          image: ghcr.io/xgalvanize/global-identity:latest
+          image: identity-api:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

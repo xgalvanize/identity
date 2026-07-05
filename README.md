@@ -35,11 +35,17 @@ If you want to stay local-only and avoid remote registries, build image on `thun
 From this workspace:
 
 ```bash
+ENABLE_FIREBASE_AUTH=true \
+ALLOW_LOCAL_PASSWORD_AUTH=false \
+FIREBASE_PROJECT_ID=identity-ceef0 \
+FIREBASE_SERVICE_ACCOUNT_JSON_PATH=/absolute/path/firebase-service-account.json \
 ./scripts/deploy.sh
 ```
 
 This script will:
 - generate fresh Mongo and JWT secrets
+- inject auth flags and Firebase credentials into `identity-secret`
+- fail fast if auth config is invalid (both auth methods disabled)
 - sync this repo to `thunderball`
 - build container image on `thunderball` using first available path:
 	- `nerdctl --namespace k8s.io`

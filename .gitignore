@@ -10,6 +10,7 @@ venv/
 k8s/secrets.yaml
 .env
 .env.*
+*firebase-adminsdk*.json
 
 # OS/editor
 .DS_Store
