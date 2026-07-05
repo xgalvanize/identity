@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: identity-api
+  namespace: global-identity
+  labels:
+    app: identity-api
+spec:
+  selector:
+    app: identity-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity-api
+  namespace: global-identity
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: identity-api
+  template:
+    metadata:
+      labels:
+        app: identity-api
+    spec:
+      containers:
+        - name: identity-api
+          image: ghcr.io/xgalvanize/global-identity:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: APP_NAME
+              value: global-identity
+            - name: JWT_ISSUER
+              value: https://identity.lan
+            - name: JWT_AUDIENCE
+              value: global-apps
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: identity-secret
+                  key: jwt-secret
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: identity-secret
+                  key: mongo-uri
+            - name: MONGO_DB
+              value: identity
+            - name: ENABLE_FIREBASE_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: identity-secret
+                  key: enable-firebase-auth
+            - name: FIREBASE_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: identity-secret
+                  key: firebase-project-id
+            - name: FIREBASE_SERVICE_ACCOUNT_JSON
+              valueFrom:
+                secretKeyRef:
+                  name: identity-secret
+                  key: firebase-service-account-json
+            - name: ALLOW_LOCAL_PASSWORD_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: identity-secret
+                  key: allow-local-password-auth
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: identity-api
+  namespace: global-identity
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: identity-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

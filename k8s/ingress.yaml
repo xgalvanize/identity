@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: identity-api
+  namespace: global-identity
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+    - host: identity.lan
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: identity-api
+                port:
+                  number: 80

@@ -1,0 +1,7 @@
+resources:
+  - namespace.yaml
+  - secrets.example.yaml
+  - mongodb.yaml
+  - identity-api.yaml
+  - ingress.yaml
+  - network-policy.yaml
