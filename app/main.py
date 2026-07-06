@@ -389,6 +389,28 @@ def me(subject: str = Depends(get_current_subject)) -> dict[str, Any]:
     }
 
 
+class LogoutRequest(BaseModel):
+    refresh_token: str
+
+
+@app.post("/auth/logout")
+def logout(payload: LogoutRequest) -> dict[str, str]:
+    try:
+        claims = decode_token(payload.refresh_token)
+    except HTTPException:
+        # Token already invalid — treat as a successful logout
+        return {"status": "ok"}
+
+    if claims.get("typ") != "refresh":
+        raise HTTPException(status_code=400, detail="Expected a refresh token")
+
+    refresh_tokens.update_one(
+        {"token_id": claims["jti"]},
+        {"$set": {"revoked": True}},
+    )
+    return {"status": "ok"}
+
+
 @app.patch("/auth/me")
 def update_me(payload: ProfileUpdateRequest, subject: str = Depends(get_current_subject)) -> dict[str, Any]:
     updates: dict[str, Any] = {"updated_at": utc_now()}
